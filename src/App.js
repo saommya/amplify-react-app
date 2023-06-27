@@ -1,133 +1,75 @@
-import React, { useState, useEffect } from "react";
-import "./App.css";
-import "@aws-amplify/ui-react/styles.css";
-import { API } from "aws-amplify";
-import {
-  Button,
-  Flex,
-  Heading,
-  Text,
-  TextField,
-  View,
-  withAuthenticator,
-} from "@aws-amplify/ui-react";
-import { listNotes } from "./graphql/queries";
-import {
-  createNote as createNoteMutation,
-  deleteNote as deleteNoteMutation,
-} from "./graphql/mutations";
+import logo from './logo.svg';
+import './App.css';
+import { Amplify, Storage, Auth } from 'aws-amplify';
+import { withAuthenticator } from '@aws-amplify/ui-react';
+import '@aws-amplify/ui-react/styles.css';
+import awsconfig from './aws-exports';
+import { API, graphqlOperation } from 'aws-amplify';
+import { listNotes } from './graphql/queries';
 
-import { API, Storage } from 'aws-amplify';
-import {
-  Button,
-  Flex,
-  Heading,
-  Image,
-  Text,
-  TextField,
-  View,
-  withAuthenticator,
-} from '@aws-amplify/ui-react';
+import { createNote } from './graphql/mutations';
 
-const App = ({ signOut }) => {
-  const [notes, setNotes] = useState([]);
+Amplify.configure(awsconfig);
 
-  useEffect(() => {
-    fetchNotes();
-  }, []);
+function App() {
 
-  async function fetchNotes() {
-    const apiData = await API.graphql({ query: listNotes });
-    const notesFromAPI = apiData.data.listNotes.items;
-    await Promise.all(
-      notesFromAPI.map(async (note) => {
-        if (note.image) {
-          const url = await Storage.get(note.name);
-          note.image = url;
-        }
-        return note;
-      })
-    );
-    setNotes(notesFromAPI);
-  }
+async function Test()
+{
+  const todos = await API.graphql(graphqlOperation(listNotes));
+  console.log(todos);
 
-  async function createNote(event) {
-    event.preventDefault();
-    const form = new FormData(event.target);
-    const image = form.get("image");
-    const data = {
-      name: form.get("name"),
-      description: form.get("description"),
-      image: image.name,
-    };
-    if (!!data.image) await Storage.put(data.name, image);
-    await API.graphql({
-      query: createNoteMutation,
-      variables: { input: data },
-    });
-    fetchNotes();
-    event.target.reset();
-  }
-  
+  // Auth.currentAuthenticatedUser({
+  //   bypassCache: false // Optional, By default is false. If set to true, this call will send a request to Cognito to get the latest user data
+  // })
+  //   .then((user) => console.log(user))
+  //   .catch((err) => console.log(err));
 
-  async function deleteNote({ id, name }) {
-    const newNotes = notes.filter((note) => note.id !== id);
-    setNotes(newNotes);
-    await Storage.remove(name);
-    await API.graphql({
-      query: deleteNoteMutation,
-      variables: { input: { id } },
-    });
-  }
+}
+
+async function Test2()
+{
+  const todo = {name: "My first todo", description: "Hello world!", image: "img.png"};
+
+  /* create a todo */
+  const todoResult = await API.graphql(graphqlOperation(createNote, {input: todo}));
+
+  console.log(todoResult);
+}
+
+async function storeS3()
+{
+  //const result = await Storage.put("test.txt", "Hello");
+
+  const result = await Storage.put("test3.txt", "Private Content", {
+    level: "private",
+    contentType: "text/plain",
+  });
+  console.log(result);
+}
+async function getS3Files()
+{
+
+  // To get other users' objects
+  const result = await Storage.get('test2.txt', {
+    level: 'protected',
+    identityId: 'us-east-1:9ec437fa-d427-411a-9781-3e4ebfd381f0' // the identityId of that user
+  });
+
+  console.log(result);
+}
 
   return (
-    <View className="App">
-      <Heading level={1}>My Notes App</Heading>
-      <View as="form" margin="3rem 0" onSubmit={createNote}>
-        <Flex direction="row" justifyContent="center">
-          <TextField
-            name="name"
-            placeholder="Note Name"
-            label="Note Name"
-            labelHidden
-            variation="quiet"
-            required
-          />
-          <TextField
-            name="description"
-            placeholder="Note Description"
-            label="Note Description"
-            labelHidden
-            variation="quiet"
-            required
-          />
-          <Button type="submit" variation="primary">
-            Create Note
-          </Button>
-        </Flex>
-      </View>
-      <Heading level={2}>Current Notes</Heading>
-      <View margin="3rem 0">
-        {notes.map((note) => (
-          <Flex
-            key={note.id || note.name}
-            direction="row"
-            justifyContent="center"
-            alignItems="center"
-          >
-            <Text as="strong" fontWeight={700}>
-              {note.name}
-            </Text>
-            <Text as="span">{note.description}</Text>
-            <Button variation="link" onClick={() => deleteNote(note)}>
-              Delete note
-            </Button>
-          </Flex>
-        ))}
-      </View>
-      <Button onClick={signOut}>Sign Out</Button>
-    </View>
+    <div className="App">
+      <header className="App-header">
+       <p> Hello</p>
+        <button onClick={() => Test()}> Tokens </button>
+        <button onClick={() => Test2()}> CreateNote </button>
+        <button onClick={() => storeS3()}> Storage </button>
+        <button onClick={() => getS3Files()}> GetOtherStorage </button>
+      </header>
+    </div>
   );
-};
+}
 
 export default withAuthenticator(App);
+//export default App;
